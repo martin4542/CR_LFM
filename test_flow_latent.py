@@ -185,7 +185,7 @@ def sample_and_test(rank, gpu, args):
         if not args.use_karras_samplers:
             fake_sample = sample_from_model(model, x, model_kwargs, args)[-1]
         else:
-            fake_sample = sample_from_model_with_fixed_step_solve(model, x, model_kwargs, generator, args)
+            fake_sample = sample_from_model_with_fixed_step_solver(model, x, model_kwargs, generator, args)
 
         if args.cfg_scale > 1.0:
             fake_sample, _ = fake_sample.chunk(2, dim=0)  # Remove null class samples
