@@ -8,7 +8,7 @@ from functools import partial
 import torch
 import torchvision
 import torch.nn.functional as F
-from torchdiffeq import odeint_adjoint as odeint
+from torchdiffeq import odeint
 
 from EMA import EMA
 from models.DiT_SEN12 import DiT
@@ -177,7 +177,8 @@ def get_weight(model):
 
 def sample_from_model(model, x_0):
     t = torch.tensor([1.0, 0.0], dtype=x_0.dtype, device="cuda")
-    fake_image = odeint(model, x_0, t, atol=1e-5, rtol=1e-5, adjoint_params=model.func.parameters())
+    # fake_image = odeint(model, x_0, t, atol=1e-5, rtol=1e-5, adjoint_params=model.func.parameters())
+    fake_image = odeint(model, x_0, t, atol=1e-5, rtol=1e-5)
     return fake_image
 
 
@@ -247,7 +248,7 @@ def train(args):
     # models to GPU & set DataParallel
     model = torch.nn.DataParallel(model)
     model = model.to(device, dtype=DTYPE)
-    # latent_feature_extractor = latent_feature_extractor.to(device, dtype=DTYPE)
+    latent_feature_extractor = latent_feature_extractor.to(device, dtype=DTYPE)
 
     # define optimizer
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.0)
@@ -310,6 +311,8 @@ def train(args):
             scheduler.step()
 
         # inference 
+        # remove dataparallel (occurs error on odeint)
+        validation_model = model.module.to(device).eval()
         if (epoch % args.plot_every) == 0:
             with torch.no_grad():
                 avg_mae_loss = 0
@@ -319,18 +322,18 @@ def train(args):
                     ridar_image = ridar_image.to(device, dtype=DTYPE)
 
                     src_latent = latent_feature_extractor.encode(src_image).latent_dist.sample().mul_(args.scale_factor)
-                    sample_model = partial(model, y=ridar_image)
+                    sample_model = partial(validation_model, y=ridar_image)
                     fake_sample = sample_from_model(sample_model, src_latent)[-1]
                     fake_image = latent_feature_extractor.decode(fake_sample / args.scale_factor).sample
 
                     mae_loss = F.l1_loss(target_image, fake_image)
                     avg_mae_loss += mae_loss.item()
 
-                    if idx % 10 == 0:
+                    if idx % 2 == 0: 
                         result_img_path = os.path.join(target_path, str(epoch), f"{idx}.png")
                         save_result_image(fake_image, result_img_path)
 
-                    if idx > 50: break
+                    if idx >= 10: break
 
                 print(f"Average MAE: {avg_mae_loss / idx}")
                 print("Finish Validation")
@@ -347,8 +350,6 @@ def train(args):
                     }
 
                     torch.save(content, os.path.join(target_path, "content.pth"))
-
-        break
 
 
 if __name__ == "__main__":
