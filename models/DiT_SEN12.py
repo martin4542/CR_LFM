@@ -18,6 +18,8 @@ from timm.models.vision_transformer import Attention, Mlp, PatchEmbed
 
 
 def modulate(x, shift, scale):
+    # scale = torch.tanh(scale)  # [-1, 1]로 제한
+    # shift = torch.tanh(shift)  # [-1, 1]로 제한
     return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
 
 

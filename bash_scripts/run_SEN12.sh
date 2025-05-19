@@ -10,8 +10,8 @@
 
 python train_cloud_removal.py --exp SEN12_0515 \
     --datadir /workspace/generative_model/data \
+    --depth 12 \
     --batch_size 24 --num_epoch 500 \
     --image_size 256 --num_in_channels 4 \
-    --lr 1e-4 --scale_factor 1.0 --no_lr_decay \
-    --save_content --save_content_every 10 \
-    --use_grad_checkpointing
+    --lr 1e-5 --scale_factor 0.18215 --no_lr_decay \
+    --save_content --save_content_every 10 

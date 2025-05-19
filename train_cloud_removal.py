@@ -8,7 +8,8 @@ from functools import partial
 import torch
 import torchvision
 import torch.nn.functional as F
-from torchdiffeq import odeint
+# from torchdiffeq import odeint
+from torchdiffeq import odeint_adjoint as odeint
 
 from EMA import EMA
 from models.DiT_SEN12 import DiT
@@ -177,8 +178,8 @@ def get_weight(model):
 
 def sample_from_model(model, x_0):
     t = torch.tensor([1.0, 0.0], dtype=x_0.dtype, device="cuda")
-    # fake_image = odeint(model, x_0, t, atol=1e-5, rtol=1e-5, adjoint_params=model.func.parameters())
-    fake_image = odeint(model, x_0, t, atol=1e-5, rtol=1e-5)
+    fake_image = odeint(model, x_0, t, atol=1e-5, rtol=1e-5, adjoint_params=model.func.parameters())
+    # fake_image = odeint(model, x_0, t, atol=1e-5, rtol=1e-5)
     return fake_image
 
 
@@ -271,7 +272,7 @@ def train(args):
         init_epoch, epoch, global_step = 0, 0, 0
 
     # start training
-    for epoch in range(init_epoch, args.num_epoch + 1):
+    for epoch in range(init_epoch, args.num_epoch):
         avg_loss = 0
 
         for iteration, (src_image, target_image, ridar_image) in enumerate(tqdm(data_loader)):
@@ -290,16 +291,18 @@ def train(args):
 
             # get intermediate latent feature at timestep t
             intermediate_latent = (1 - t) * target_latent + (1e-5 + (1 - 1e-5) * t) * src_latent
-            u = (1 - 1e5) * src_latent - target_latent
+            u = (1 - 1e-5) * src_latent - target_latent
 
             # estimate velocity & compute loss
             v = model(t.squeeze(), intermediate_latent, ridar_image)
-            loss = F.mse_loss(v, u)
+            loss = F.mse_loss(u, v)
+            # loss = F.smooth_l1_loss(u, v)
 
             avg_loss += loss.item()
             # backprop loss
             optimizer.zero_grad()
             loss.backward()
+            # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             global_step += 1
             if (iteration % 100) == 0:
