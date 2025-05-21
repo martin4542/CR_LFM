@@ -29,7 +29,7 @@ LATENT_SIZE = 32
 
 
 def parse_args():
-    parser = argparse.ArgumentParser("DDGAN parameters")
+    parser = argparse.ArgumentParser("flow-matching parameters")
     parser.add_argument("--seed", type=int, default=1024, help="Seed used for initialization")
 
     parser.add_argument("--resume", action="store_true", default=False)
@@ -138,7 +138,7 @@ def parse_args():
 
 def load_model_from_ckpt(model, optimizer, scheduler, target_path, device):
     checkpoint_file = os.path.join(target_path, "content.pth")
-    checkpoint = torch.load(checkpoint_file, map_location=device, weights_only=True)
+    checkpoint = torch.load(checkpoint_file, map_location=device, weights_only=False)
     model.load_state_dict(checkpoint["model_dict"])
     init_epoch = checkpoint["epoch"]
     epoch = init_epoch
