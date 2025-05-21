@@ -17,6 +17,7 @@ DTYPE = torch.float32
 HIDDEN_FEATURE_DIM = 1024
 LATENT_SIZE = 32
 
+to_range_0_1 = lambda x: (x + 1.0) / 2.0
 
 
 def parse_args():
@@ -187,7 +188,7 @@ def sample_from_model(args, model, x_0, model_kwargs):
         options=options,
         adjoint_params=model.parameters()
     )
-    return fake_image
+    return fake_image[-1]
 
 
 def save_result_image(fake_image, target_path):
@@ -243,6 +244,7 @@ def test(args):
 
     # define experiment result save directory
     target_path = os.path.join(args.result_path, args.exp, "test_results")
+    normalized_img_path = os.path.join(args.result_path, args.exp, "normalized_results")
     if not os.path.exists(target_path): os.makedirs(target_path)
 
     with torch.no_grad():
@@ -256,16 +258,25 @@ def test(args):
             # sample_model = partial(model, y=ridar_image)
             # fake_sample = sample_from_model(args, sample_model, src_latent)[-1]
             model_kwargs = dict(y=ridar_image)
-            fake_sample = sample_from_model(args, model, src_latent, model_kwargs)[-1]
+            fake_sample = sample_from_model(args, model, src_latent, model_kwargs)
             fake_image = latent_feature_extractor.decode(fake_sample / args.scale_factor).sample
 
             mae_loss = F.l1_loss(target_image, fake_image)
             avg_mae_loss += mae_loss.item()
             print(mae_loss.item())
 
+            # raw image
             result_image_path = os.path.join(target_path, f"{idx}.png")
             save_result_image(fake_image, result_image_path)
             target_image_path = os.path.join(target_path, f"{idx}_gt.png")
+            save_result_image(target_image, target_image_path)
+
+            # normalized image
+            target_image = torch.clamp(to_range_0_1(target_image), 0, 1)
+            fake_image = torch.clamp(to_range_0_1(fake_image), 0, 1)
+            result_image_path = os.path.join(normalized_img_path, f"{idx}.png")
+            save_result_image(fake_image, result_image_path)
+            target_image_path = os.path.join(normalized_img_path, f"{idx}_gt.png")
             save_result_image(target_image, target_image_path)
 
 
